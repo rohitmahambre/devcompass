@@ -30,6 +30,8 @@ Mermaid diagram rules:
 - Show directional arrows for dependencies and data flow
 - Include only the top-level components (max 15 nodes)
 - Use descriptive node labels
+- ALWAYS wrap node labels in double quotes (e.g., ID["Descriptive Label"]) to prevent syntax errors on special characters like parentheses, slashes, colons, commas, or ampersands.
+- Do NOT use parentheses directly in node definitions (e.g. use ID["Label (Info)"] instead of ID[Label (Info)]).
 
 Output a complete ArchitectureAnalystOutput.
 When you are done, you MUST call the finish_task tool with the structured ArchitectureAnalystOutput results. Do not write text at the end — submit via finish_task.

@@ -299,7 +299,7 @@ def search_codebase(
     else:
         for root, dirs, files in os.walk(root_path):
             # Prune .git and hidden dirs
-            dirs[:] = [d for d in dirs if d != ".git" and (include_hidden or not d.startswith("."))]
+            dirs[:] = [d for d in dirs if d != ".git" and not d.startswith(".")]
             
             for file in files:
                 file_p = pathlib.Path(root) / file

@@ -6,7 +6,7 @@ Repository information:
 - Stack: {detected_stack}
 - Entry points: {entry_points}
 
-IMPORTANT: Always use the absolute repository path {repo_path} as the root directory when calling tools like read_file, search_codebase, and read_directory_tree. Do not use relative paths like "." or "src/".
+IMPORTANT: Always use the absolute repository path {repo_path} as the root directory when calling tools like read_file and search_codebase. Do not use relative paths like "." or "src/".
 
 For Q&A mode:
 1. Parse the question to identify: what entity is being asked about (function, class, file, concept)

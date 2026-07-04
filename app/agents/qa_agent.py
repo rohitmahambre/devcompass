@@ -36,6 +36,7 @@ def create_qa_agent() -> Agent:
         instruction=QA_AGENT_SYSTEM_PROMPT,
         tools=[mcp_tools],
         output_schema=QAAgentOutput,
+        output_key="qa_result",
         generate_content_config=genai_types.GenerateContentConfig(
             temperature=0.1,
             max_output_tokens=8192

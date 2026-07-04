@@ -6,6 +6,50 @@ from google.adk.agents.callback_context import CallbackContext
 
 import json
 
+import re
+
+# Mermaid keywords that should never be treated as node IDs
+_MERMAID_KEYWORDS = re.compile(
+    r'^\s*(subgraph|end|graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|mindmap|timeline)\b',
+    re.IGNORECASE
+)
+
+def sanitize_line(line: str) -> str:
+    # Skip comment lines
+    if line.strip().startswith("%%"):
+        return line
+    # Skip lines that already contain double quotes — they're already valid Mermaid
+    # (e.g. subgraph "Web Server (WSGI)", or Node["Already quoted"])
+    if '"' in line:
+        return line
+    # Skip structural keyword lines (subgraph, end, graph TD, etc.)
+    if _MERMAID_KEYWORDS.match(line):
+        return line
+    # Apply bracket-quoting patterns — only match unquoted node labels
+    patterns = [
+        (r"(^|\s|-->|---)\b([a-zA-Z0-9_-]+)\s*\(\[\s*([^\"\]\n]+?)\s*\]\)", r'\1\2(["\3"])'),
+        (r"(^|\s|-->|---)\b([a-zA-Z0-9_-]+)\s*\[\(\s*([^\"\)\n]+?)\s*\)\]", r'\1\2([("\3")])'),
+        (r"(^|\s|-->|---)\b([a-zA-Z0-9_-]+)\s*\[\[\s*([^\"\]\n]+?)\s*\]\]", r'\1\2[["\3"]]'),
+        (r"(^|\s|-->|---)\b([a-zA-Z0-9_-]+)\s*\(\(\s*([^\"\)\n]+?)\s*\)\)", r'\1\2(("\3"))'),
+        (r"(^|\s|-->|---)\b([a-zA-Z0-9_-]+)\s*\{\{\s*([^\"\}\n]+?)\s*\}\}", r'\1\2{{"\3"}}'),
+        (r"(^|\s|-->|---)\b([a-zA-Z0-9_-]+)\s*\[\s*([^\"\]\n]+?)\s*\]", r'\1\2["\3"]'),
+        (r"(^|\s|-->|---)\b([a-zA-Z0-9_-]+)\s*\(\s*([^\"\)\n]+?)\s*\)", r'\1\2("\3")'),
+        (r"(^|\s|-->|---)\b([a-zA-Z0-9_-]+)\s*\{\s*([^\"\}\n]+?)\s*\}", r'\1\2{"\3"}'),
+    ]
+    for pattern, repl in patterns:
+        line = re.sub(pattern, repl, line)
+    return line
+
+def sanitize_mermaid(diagram: str) -> str:
+    if not diagram:
+        return ""
+    # Strip surrounding markdown fences if present
+    stripped = diagram.strip()
+    if stripped.startswith("```mermaid"):
+        lines = stripped.splitlines()
+        stripped = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+    return "\n".join(sanitize_line(line) for line in stripped.splitlines())
+
 async def unpack_ingestion_callback(callback_context: CallbackContext, llm_request=None) -> None:
     # before_model_callback fires before each LLM call made by the orchestrator.
     # Sub-agents in ADK write their structured output_schema results to session
@@ -24,7 +68,13 @@ async def unpack_ingestion_callback(callback_context: CallbackContext, llm_reque
                 if event.author == "repo_ingestion_agent":
                     callback_context.state["repo_ingestion_result"] = event.output
                 elif event.author == "architecture_analyst_agent":
-                    callback_context.state["architecture_result"] = event.output
+                    output = event.output
+                    if output:
+                        if hasattr(output, "mermaid_diagram") and output.mermaid_diagram:
+                            output.mermaid_diagram = sanitize_mermaid(output.mermaid_diagram)
+                        elif isinstance(output, dict) and output.get("mermaid_diagram"):
+                            output["mermaid_diagram"] = sanitize_mermaid(output["mermaid_diagram"])
+                    callback_context.state["architecture_result"] = output
                 elif event.author == "qa_agent":
                     callback_context.state["qa_result"] = event.output
                 elif event.author == "documentation_generator_agent":

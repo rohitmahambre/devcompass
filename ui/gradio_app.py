@@ -1,6 +1,7 @@
 import os
 import uuid
 import tempfile
+import base64
 import gradio as gr
 import asyncio
 
@@ -25,6 +26,30 @@ def make_temp_file(content: str, filename: str) -> str:
         f.write(content)
     return file_path
 
+def mermaid_to_html(diagram_text: str) -> str:
+    """Wrap a raw mermaid diagram string into an HTML block for gr.HTML rendering.
+    
+    IMPORTANT: Gradio inserts gr.HTML content via innerHTML, which prevents <script>
+    tags from executing. We work around this by:
+    1. Encoding the mermaid source as base64 in a data attribute
+    2. Using a MutationObserver (set up once in the page <head>) that fires when
+       any .mermaid element appears and calls mermaid.run() on it.
+    """
+    if not diagram_text:
+        return "<p style='color:#888'>Diagram will render here after analysis.</p>"
+    # Strip markdown fences if present
+    stripped = diagram_text.strip()
+    if stripped.startswith("```mermaid"):
+        lines = stripped.splitlines()
+        stripped = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+    # Base64-encode so the content survives HTML attribute quoting safely
+    b64 = base64.b64encode(stripped.encode('utf-8')).decode('ascii')
+    return f"""
+<div style="background:#fff;border-radius:8px;padding:16px;overflow:auto;">
+  <div class="mermaid" data-src="{b64}" style="text-align:center;"></div>
+</div>
+"""
+
 async def run_analysis_and_update_ui(repo_input, role_radio, session_id):
     """
     Triggers the analysis and updates all UI elements.
@@ -32,7 +57,7 @@ async def run_analysis_and_update_ui(repo_input, role_radio, session_id):
     if not repo_input:
         yield (
             "⚠️ Please enter a repository URL or local path first.",
-            "", "", "", "", "",
+            "", mermaid_to_html(""), "", "", "",
             gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
         )
         return
@@ -65,7 +90,7 @@ async def run_analysis_and_update_ui(repo_input, role_radio, session_id):
         yield (
             status,
             arch_md,
-            mermaid_md,
+            mermaid_to_html(mermaid_md),   # Convert raw mermaid to HTML for gr.HTML component
             readme if readme else "Documentation is generating...",
             arch_doc if arch_doc else "Architecture documentation is generating...",
             checklist if checklist else "Personalized checklist is generating...",
@@ -105,14 +130,47 @@ head => {
 def create_ui():
     with gr.Blocks(
         title="DevCompass 🧭 Codebase Intelligence",
-        theme=gr.themes.Soft(primary_hue="teal", secondary_hue="indigo"),
-        css=".mermaid { text-align: center; background: white; padding: 10px; border-radius: 8px; }"
     ) as demo:
-        
-        # Injected mermaid cdn
+
+        # Inject Mermaid@10 and a MutationObserver via the <head> param.
+        # The observer watches for .mermaid[data-src] elements inserted by gr.HTML
+        # updates, decodes the base64 diagram source, sets the element textContent,
+        # then calls mermaid.run() — bypassing Gradio's innerHTML <script> blocking.
         gr.HTML(
-            "<script src='https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js'></script>"
-            "<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>"
+            value="",
+            head=(
+                "<script src='https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js'></script>"
+                "<script>"
+                "(function() {"
+                "  function renderPending() {"
+                "    document.querySelectorAll('.mermaid[data-src]:not([data-rendered])').forEach(function(el) {"
+                "      try {"
+                "        el.textContent = atob(el.getAttribute('data-src'));"
+                "        el.setAttribute('data-rendered', '1');"
+                "      } catch(e) {}"
+                "    });"
+                "    if (typeof mermaid !== 'undefined') {"
+                "      mermaid.initialize({ startOnLoad: false, theme: 'default', darkMode: false,"
+                "        themeVariables: { primaryColor: '#e8f4f8', primaryTextColor: '#1a1a1a',"
+                "          primaryBorderColor: '#2980b9', lineColor: '#555', background: '#ffffff' } });"
+                "      mermaid.run({ querySelector: '.mermaid[data-rendered]' });"
+                "    }"
+                "  }"
+                "  var obs = new MutationObserver(function(muts) {"
+                "    var found = muts.some(function(m) {"
+                "      return Array.from(m.addedNodes).some(function(n) {"
+                "        return n.nodeType === 1 && (n.matches && n.matches('.mermaid[data-src]') || n.querySelector && n.querySelector('.mermaid[data-src]'));"
+                "      });"
+                "    });"
+                "    if (found) setTimeout(renderPending, 150);"
+                "  });"
+                "  document.addEventListener('DOMContentLoaded', function() {"
+                "    obs.observe(document.body, { childList: true, subtree: true });"
+                "    renderPending();"
+                "  });"
+                "}());"
+                "</script>"
+            )
         )
         
         gr.Markdown(
@@ -149,7 +207,7 @@ def create_ui():
                         architecture_md = gr.Markdown("The architecture summary will appear here after analysis.")
                     with gr.Column(scale=3):
                         gr.Markdown("### Repository Structural Diagram")
-                        mermaid_md = gr.Markdown("Diagram will render here.")
+                        mermaid_md = gr.HTML("<p style='color:#888'>Diagram will render here after analysis.</p>")
                         
             with gr.Tab("Generated Docs"):
                 with gr.Tabs():
@@ -188,17 +246,11 @@ def create_ui():
             ]
         )
         
-        # When mermaid markdown changes, trigger a JS rerender of mermaid graphs
-        mermaid_md.change(
-            fn=None,
-            inputs=None,
-            outputs=None,
-            js="() => { setTimeout(() => { if (typeof mermaid !== 'undefined') { mermaid.run(); } }, 500); }"
-        )
+        # No mermaid.change() handler needed — gr.HTML updates trigger immediately
         
         # Clear inputs
         def clear_inputs():
-            return "", "any", "🟢 *Enter repository details and click Analyze to begin.*", "", "", "", "", "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
+            return "", "any", "🟢 *Enter repository details and click Analyze to begin.*", "", mermaid_to_html(""), "", "", "", gr.update(visible=False), gr.update(visible=False), gr.update(visible=False)
             
         clear_btn.click(
             fn=clear_inputs,
@@ -222,4 +274,35 @@ def create_ui():
 
 if __name__ == "__main__":
     demo = create_ui()
-    demo.launch(server_name="0.0.0.0", server_port=8080)
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=8080,
+        theme=gr.themes.Soft(primary_hue="teal", secondary_hue="indigo"),
+        css="""
+            .mermaid {
+                text-align: center;
+                background: #ffffff;
+                padding: 16px;
+                border-radius: 8px;
+            }
+            .mermaid svg .label,
+            .mermaid svg text,
+            .mermaid svg span,
+            .mermaid svg .nodeLabel,
+            .mermaid svg .edgeLabel,
+            .mermaid svg foreignObject div {
+                color: #1a1a1a !important;
+                fill: #1a1a1a !important;
+                background: transparent !important;
+            }
+            .mermaid svg .node rect,
+            .mermaid svg .node circle,
+            .mermaid svg .node polygon {
+                fill: #e8f4f8 !important;
+                stroke: #2980b9 !important;
+            }
+            .mermaid svg .edgePath path {
+                stroke: #555 !important;
+            }
+        """
+    )

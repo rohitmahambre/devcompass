@@ -34,6 +34,7 @@ def create_doc_generator_agent() -> Agent:
         instruction=DOC_GENERATOR_SYSTEM_PROMPT,
         tools=[mcp_tools],
         output_schema=DocGeneratorOutput,
+        output_key="documentation_result",
         generate_content_config=genai_types.GenerateContentConfig(
             temperature=0.3,
             max_output_tokens=16384

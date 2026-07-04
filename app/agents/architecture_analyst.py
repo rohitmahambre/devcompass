@@ -35,6 +35,7 @@ def create_architecture_analyst_agent() -> Agent:
         instruction=ARCHITECTURE_ANALYST_SYSTEM_PROMPT,
         tools=[mcp_tools],
         output_schema=ArchitectureAnalystOutput,
+        output_key="architecture_result",
         generate_content_config=genai_types.GenerateContentConfig(
             temperature=0.1,
             max_output_tokens=8192

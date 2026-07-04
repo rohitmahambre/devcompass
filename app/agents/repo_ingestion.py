@@ -45,6 +45,7 @@ def create_repo_ingestion_agent() -> Agent:
         instruction=REPO_INGESTION_SYSTEM_PROMPT,
         tools=[mcp_tools],
         output_schema=RepoIngestionOutput,
+        output_key="repo_ingestion_result",
         generate_content_config=genai_types.GenerateContentConfig(
             temperature=0.0,
             max_output_tokens=8192
