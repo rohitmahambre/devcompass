@@ -36,8 +36,11 @@ os.environ["GOOGLE_CLOUD_LOCATION"] = "global"
 
 # Check if GOOGLE_API_KEY is defined in env (AI Studio key)
 # If not, ADK will default to Vertex AI credentials.
-if not os.environ.get("GOOGLE_API_KEY") and not os.environ.get("GOOGLE_CLOUD_PROJECT"):
-    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "False"
+if not os.environ.get("GOOGLE_API_KEY"):
+    if os.environ.get("GOOGLE_CLOUD_PROJECT"):
+        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
+    else:
+        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "False"
 
 def build_root_agent() -> Agent:
     # Factory functions are used for each sub-agent to prevent the "agent already
