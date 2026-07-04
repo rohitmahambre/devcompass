@@ -43,4 +43,5 @@ Onboarding Checklist:
 - Personalize based on developer_role if provided
 
 Write in clear, precise technical English. Use markdown. Include code blocks.
+When you are done, you MUST call the finish_task tool with the structured DocGeneratorOutput results. Do not write text at the end — submit via finish_task.
 """

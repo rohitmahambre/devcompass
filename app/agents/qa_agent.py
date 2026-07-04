@@ -30,7 +30,7 @@ def create_qa_agent() -> Agent:
     
     return Agent(
         name="qa_agent",
-        model="gemini-2.5-flash",
+        model="gemini-2.5-pro",
         mode="task",
         description="Answers questions about code structure and behavior, and performs codebase review.",
         instruction=QA_AGENT_SYSTEM_PROMPT,

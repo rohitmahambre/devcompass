@@ -21,6 +21,6 @@ class RepoIngestionOutput(BaseModel):
     detected_stack: dict = Field(description="Detected languages, frameworks, and build tools")
     entry_points: List[str] = Field(description="Identified entry point files (main.py, index.js, etc.)")
     dependency_summary: str = Field(description="Summary of dependencies from manifest files")
-    key_files_content: Dict[str, str] = Field(description="Content of critical files: README, config, entrypoints")
+    key_file_paths: List[str] = Field(description="Paths to critical files: README, config, entrypoints (content to be read on demand)")
     total_files: int = Field(description="Total count of files in repo")
     total_lines: int = Field(description="Total lines of code in repo")

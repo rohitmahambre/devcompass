@@ -39,7 +39,7 @@ def create_repo_ingestion_agent() -> Agent:
     
     return Agent(
         name="repo_ingestion_agent",
-        model="gemini-2.5-flash",
+        model="gemini-2.5-pro",
         mode="task",
         description="Ingests a repository (GitHub URL or local path) and builds a structural index.",
         instruction=REPO_INGESTION_SYSTEM_PROMPT,

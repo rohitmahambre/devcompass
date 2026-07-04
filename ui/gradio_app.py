@@ -164,7 +164,6 @@ def create_ui():
                 chat_interface = gr.ChatInterface(
                     fn=handle_chat,
                     additional_inputs=[session_id_state],
-                    type="messages",
                     description="Ask questions about variables, modules, entrypoints, or requests flow inside the codebase."
                 )
                 

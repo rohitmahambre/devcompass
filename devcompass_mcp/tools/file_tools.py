@@ -90,6 +90,10 @@ def read_file(path: str, encoding: str = "utf-8", max_lines: int = 2000, start_l
     content = "".join(selected_lines)
     truncated = end_idx < total_lines
 
+    if len(content) > 8000:
+        content = content[:8000] + "\n... [TRUNCATED TO PREVENT PAYLOAD OVERFLOW]"
+        truncated = True
+
     return {
         "content": content,
         "total_lines": total_lines,
