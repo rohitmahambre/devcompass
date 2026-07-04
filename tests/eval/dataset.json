@@ -1,0 +1,18 @@
+{
+  "eval_cases": [
+    {
+      "prompt": {
+        "parts": [
+          {"text": "Analyze the repository '/tmp/devcompass/integration_sample_repo' and generate all documentation artifacts for developer role 'backend'."}
+        ]
+      }
+    },
+    {
+      "prompt": {
+        "parts": [
+          {"text": "Explain what languages are used in the codebase."}
+        ]
+      }
+    }
+  ]
+}
